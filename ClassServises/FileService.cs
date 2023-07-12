@@ -88,7 +88,7 @@ namespace ClassServises
                 sb.Append(user.LastName + ',');
                 sb.Append(user.BirthDate.ToString() + ',');
                 sb.Append(user.Username + ',');
-                sb.Append(user.Password+'\n');
+                sb.Append(user.Password);
                 writer.WriteLine(sb);
                 //writer.WriteLine($"{user.Id},{user.FirstName},{user.LastName},{user.BirthDate},{user.Username},{user.Password}");
             }
