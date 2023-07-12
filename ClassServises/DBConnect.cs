@@ -1,76 +1,77 @@
 ﻿using Npgsql;
-
+using System;
 namespace ClassServises
 {
-    public static class DBConnect
+    public class DBConnect
     {
         static string connectionString = "Server=localhost;Port=5432;User Id=postgres;Password=root";
-        static string databaseName = "ToDoAppProject";
+        static string databaseName = "todoappproject";
         static string connectionStringDatabase = $"Server=localhost;Port=5432;User Id =postgres;Password = root; Database={databaseName};";
-        static string tasktable = "tasksofusers";
         static string usertable = "usertable";
-        static DBConnect()
+        static string tasktable = "tasksofusers";
+        public DBConnect()
         {
-                string taskcommand = $"CREATE TABLE IF NOT EXISTS '{tasktable}'(" +
-                    $"Id varchar(36)," +
-                    $"Title varchar(200)," +
-                    $"Description varchar(3000)," +
-                    $"DueDate DATE NOT NULL," +
-                    $"Priority int," +
-                    $"Status int," +
-                    $"UserId int not null," +
-                    $"PRIMARY KEY(id)," +
-                    $"Constraint(fk_userid) " +
-                    $"FOREIGN KEY (UserId) " +
-                    $"References {usertable}(Id) " +
-                    $"on update cascade" +
-                    $");";
-                string usercommand = $"CREATE TABLE IF NOT EXISTS '{usertable}'(" +
-                    $"Id varchar(36) primary key," +
-                    $"FirstName varchar(30)," +
-                    $"LastName varchar(40)," +
-                    $"BirthDate DATE NOT NULL," +
-                    $"Username varchar(30)," +
-                    $"Password varchar(8)" +
-                    $");";
-            using (var conn = new NpgsqlConnection(connectionString))
+            //Database borligini tekshirish
+            using (var con = new NpgsqlConnection(connectionString))
             {
-                conn.Open();
-                bool isDatabaseExists;
+                con.Open();
                 using (var cmd = new NpgsqlCommand())
                 {
-                    cmd.Connection = conn;
-                    cmd.CommandText = $"SELECT 1 FROM pg_catalog.pg_database WHERE datname='{databaseName}';";
-                    isDatabaseExists = cmd.ExecuteScalar() != null;
+                    cmd.Connection = con;
+                    cmd.CommandText = $"SELECT 'CREATE DATABASE {databaseName}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{databaseName}')";
+                    cmd.ExecuteScalar();
+                }
+            }
+
+            //creating tables
+            using (var conn = new NpgsqlConnection(connectionStringDatabase))
+            {
+                conn.Open();
+
+                //create usertable
+                using (var createUserTableCmd = new NpgsqlCommand())
+                {
+                    createUserTableCmd.Connection = conn;
+                    string userCommand =
+                       $"CREATE TABLE IF NOT EXISTS \"{usertable}\"(" +
+                       "Id varchar(36) primary key," +
+                       "FirstName varchar(30)," +
+                       "LastName varchar(40)," +
+                       "BirthDate DATE," +
+                       "Username varchar(30)," +
+                       "Password varchar(8)" +
+                       ");";
+                    createUserTableCmd.CommandText = userCommand;
+                    createUserTableCmd.ExecuteNonQuery();
+
+                    Console.WriteLine($"The table '{usertable}' created or already exists.");
+                }
+                //create usertasks table
+                using (var createTaskTableCmd = new NpgsqlCommand())
+                {
+                    createTaskTableCmd.Connection = conn;
+
+
+                    string task = $"CREATE TABLE IF NOT EXISTS {tasktable}(Id varchar(36), Title varchar(200),Description varchar(3000),DueDate DATE,Priority int,Status int,UserId varchar(36) not null,Primary key (Id),CONSTRAINT fk_userid FOREIGN KEY(UserId) REFERENCES \"{usertable}\"(Id) ON DELETE CASCADE);";
+                    createTaskTableCmd.CommandText = task;
+                    createTaskTableCmd.ExecuteNonQuery();
+
+                    Console.WriteLine($"The table '{tasktable}' created or already exists.");
                 }
 
-                if (!isDatabaseExists)
-                {
-                    // Create the database
-                    using (var cmd = new NpgsqlCommand())
-                    {
-                        cmd.Connection = conn;
-                        cmd.CommandText = $"CREATE DATABASE if not exists '{databaseName}';";
-                        cmd.ExecuteNonQuery();
-
-                        Console.WriteLine("Database created successfully!");
-                    };
-                }
-                using(var cmd = new NpgsqlCommand())
-                {
-                    cmd.Connection = conn;
-                    cmd.CommandText = usercommand;
-                    cmd.ExecuteNonQuery();
-                    cmd.CommandText = taskcommand;
-                    cmd.ExecuteNonQuery();
-                }    
-                Console.WriteLine($"The table '{tasktable}' created to database");
-                }
+            }
 
         }
+        
         public static bool CheckUser(string username)
         {
-            string command = $"Select Id, Username From {usertable}";
+            try { }
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            
+            string command = $"""Select Username From "{usertable}" """;
             using (var con = new NpgsqlConnection(connectionStringDatabase))
             {
                 con.Open();
@@ -80,12 +81,12 @@ namespace ClassServises
                     var result = GetBySubject();
                     IEnumerable<string> GetBySubject()
                     {
-                        cmd.CommandText = $"SELECT * FROM person";
+                        cmd.CommandText = command;
                         NpgsqlDataReader reader = cmd.ExecuteReader();
                         var result = new List<string>();
                         while (reader.Read())
                         {
-                            result.Add(reader[1] as string);
+                            result.Add(reader[0] as string);
                         }
                         return result;
                     }
@@ -97,9 +98,6 @@ namespace ClassServises
             }
             return true;
             
-            
-            
-
         }
         public static bool CheckUser(string username, string password, out string userid)
         {
@@ -130,27 +128,40 @@ namespace ClassServises
             }
             return false;
         }
-        public static void CreateUser<T>(T user) where T : User
+        //creating new user
+        public static bool CreateUser<T>(T user) where T : User
         {
-            string command = $"""INSERT INTO {usertable} Values ({user.Id.ToString()}, {user.FirstName}, {user.LastName}, "{user.BirthDate.Year}-{user.BirthDate.Month}-{user.BirthDate.Day}", {user.Username}, {user.Password}""";
+            string command = $@"INSERT INTO ""{usertable}"" (Id, FirstName, LastName, BirthDate, Username, Password) 
+                        VALUES (@Id, @FirstName, @LastName, @BirthDate, @Username, @Password)";
+
             using (var con = new NpgsqlConnection(connectionStringDatabase))
             {
                 con.Open();
                 using (var cmd = new NpgsqlCommand())
                 {
+                    cmd.Connection = con;
                     cmd.CommandText = command;
+
+                    cmd.Parameters.AddWithValue("@Id", user.Id);
+                    cmd.Parameters.AddWithValue("@FirstName", user.FirstName);
+                    cmd.Parameters.AddWithValue("@LastName", user.LastName);
+                    cmd.Parameters.AddWithValue("@BirthDate", user.BirthDate);
+                    cmd.Parameters.AddWithValue("@Username", user.Username);
+                    cmd.Parameters.AddWithValue("@Password", user.Password);
+
                     try
                     {
                         cmd.ExecuteNonQuery();
-                        
+                        return false;
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine(ex.Message);
+                        Console.WriteLine($"Error creating user: {ex.Message}");
+                        return true;
                     }
                 }
             }
         }
-        
+
     }
 }
