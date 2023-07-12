@@ -14,6 +14,8 @@ namespace WinFormsApp1
 
             create_User = new Create_user();
             create_User.FormClosing += CreateUser_FormClosing;
+            var con = new DBConnect();
+            
         }
         private void CreateUser_FormClosing(object sender, FormClosingEventArgs e)
         {
@@ -49,7 +51,12 @@ namespace WinFormsApp1
         {
 
             error.Hide();
-            if (FileService.Checkuser(username_input.Text, password_input.Text, out userid) == false)
+            //if (FileService.Checkuser(username_input.Text, password_input.Text, out userid) == false || DBConnect.CheckUser(username_input.Text, password_input.Text, out userid)==false)
+            //{
+            //    error.Text = "Invalid username or password";
+            //    error.Show();
+            //}
+            if (DBConnect.CheckUser(username_input.Text, password_input.Text, out userid) == false)
             {
                 error.Text = "Invalid username or password";
                 error.Show();
