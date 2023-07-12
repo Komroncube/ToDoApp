@@ -83,7 +83,10 @@ namespace WinFormsApp1
                 user.Username = username_input.Text.Trim();
                 user.Password = password_input.Text.Trim();
                 FileService.CreateUser(user);
-                DBConnect.CreateUser(user);
+                if(DBConnect.CreateUser(user))
+                {
+                    MessageBox.Show("Xatolik bo'ldi");
+                }
                 SwitchWindow();
             }
         }
